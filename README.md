@@ -50,6 +50,31 @@ server {
 - For a backend (Node, Flask, etc.), run it on the EC2 host (e.g., port 3000) and enable the commented `/api/` proxy block in `nginx/jjr-web.conf`, updating `proxy_pass`.
 - During local dev, you can mimic the same by running your backend on another port and adjusting requests to `/api/...`.
 
+## App structure
+
+- `index.html`: App shell with header, projects list, and footer.
+- `assets/css/styles.css`: Compact styles with simple grid and subtle dividers.
+- `assets/js/main.js`: In-memory projects and basic add-project action.
+- `partials/`: Shared header and footer HTML.
+- `assets/js/layout.js`: Lightweight client-side includes for partials.
+ - `content/`: HTML content pages. Each page can declare a content name.
+
+## Adding new content pages
+
+1. Copy `content/welcome.html` to a new file in `content/`, e.g., `content/summer-projects.html`.
+2. Edit the `<article>` section content.
+3. Optionally set the display name with a top-of-file HTML comment:
+   - `<!-- content-name: Summer Projects -->`
+4. The nav and the home page “Latest” section will auto-populate from `/api/content`.
+4. Deploy by copying the new file(s) to your EC2 `/var/www/jjr-web/notes/` directory.
+
+The `/api/content` endpoint reads each file in `content/` and extracts `content-name` comments to build the navigation.
+
+### Using shared header/footer
+
+- Place `<header data-include></header>` and `<footer data-include></footer>` in your page.
+- Ensure the page includes the correct `layout.js` script path (relative).
+
 ## Node backend (Express) and PM2
 
 - Minimal Express server is included in `server.js` with `/api/health`.
@@ -62,6 +87,19 @@ pm2 start server.js --name jjr-api
 pm2 save
 pm2 startup
 ```
+
+## Latest Photo (Google Photos) stub
+
+- Configure environment in your shell before starting the API:
+  - `export PORT=3000`
+  - `export DEV_MODE=true`
+  - `export GOOGLE_CLIENT_ID=...`
+  - `export GOOGLE_CLIENT_SECRET=...`
+  - `export GOOGLE_REFRESH_TOKEN=...`
+  - `export GOOGLE_PHOTOS_ALBUM_ID=...`
+  - `export GOOGLE_PEOPLE_FILTER="Justin Pfister,jjr,dad"`
+- The `/api/latest-photo` endpoint returns 204 No Content until credentials are set and real API code is added in `services/googlePhotos.js`.
+- The homepage attempts to render the latest photo when available.
 
 ## Git and repository hygiene
 

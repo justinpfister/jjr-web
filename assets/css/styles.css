@@ -1,0 +1,45 @@
+:root {
+    --bg: #0f1115;
+    --panel: #151822;
+    --text: #e7eaf3;
+    --muted: #9aa3b2;
+    --accent: #5cc8ff;
+    --divider: rgba(255,255,255,0.08);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif; }
+
+.app-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--divider); position: sticky; top: 0; background: rgba(15,17,21,0.8); backdrop-filter: blur(6px); }
+.app-header h1 { margin: 0; font-size: 18px; }
+.brand { color: var(--text); text-decoration: none; }
+.app-nav { display: flex; gap: 10px; }
+.app-nav a { color: var(--muted); text-decoration: none; padding: 6px 8px; border-radius: 6px; }
+.app-nav a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.header-actions { display: flex; gap: 8px; }
+
+.app-main { padding: 12px 14px; }
+.section-title { margin: 16px 0 8px; font-size: 13px; color: var(--muted); font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+.page-title { margin: 6px 0; font-size: 22px; }
+.lead { margin: 4px 0 14px; color: var(--muted); }
+
+.list { list-style: none; padding: 0; margin: 8px 0; }
+.list li { padding: 8px 10px; border: 1px solid var(--divider); background: var(--panel); border-radius: 8px; margin-bottom: 8px; }
+.list a { color: var(--text); text-decoration: none; }
+.list a:hover { color: var(--accent); }
+
+/* Typography */
+h1, h2, h3, h4 { line-height: 1.2; }
+p { line-height: 1.5; }
+article { background: var(--panel); border: 1px solid var(--divider); border-radius: 10px; padding: 14px; }
+article h1 { font-size: 20px; margin: 0 0 8px; }
+article h2 { font-size: 16px; margin: 14px 0 6px; }
+article p { color: var(--text); }
+article .muted { color: var(--muted); }
+hr { border: none; border-top: 1px solid var(--divider); margin: 12px 0; }
+
+.btn { background: var(--panel); color: var(--text); border: 1px solid var(--divider); border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+
+.app-footer { padding: 12px 14px; border-top: 1px solid var(--divider); color: var(--muted); font-size: 12px; }
+
