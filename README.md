@@ -50,6 +50,19 @@ server {
 - For a backend (Node, Flask, etc.), run it on the EC2 host (e.g., port 3000) and enable the commented `/api/` proxy block in `nginx/jjr-web.conf`, updating `proxy_pass`.
 - During local dev, you can mimic the same by running your backend on another port and adjusting requests to `/api/...`.
 
+## Node backend (Express) and PM2
+
+- Minimal Express server is included in `server.js` with `/api/health`.
+- Local: `npm run api` starts the API on `http://127.0.0.1:3000` (change `PORT` env as needed).
+- Nginx: uncomment the `/api/` location block in `nginx/jjr-web.conf` and set `proxy_pass` to `http://127.0.0.1:3000/`.
+
+PM2 on EC2:
+```
+pm2 start server.js --name jjr-api
+pm2 save
+pm2 startup
+```
+
 ## Git and repository hygiene
 
 - `htmloutput/` and generated `*.png` files are ignored by default.
