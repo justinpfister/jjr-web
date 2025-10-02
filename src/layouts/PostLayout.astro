@@ -1,0 +1,9 @@
+---
+const { title, description, pubDate } = Astro.props;
+---
+<article style="font-family: system-ui, sans-serif; margin: 2rem;">
+  <h1>{title}</h1>
+  {description && <p>{description}</p>}
+  <p><small>{new Date(pubDate).toDateString()}</small></p>
+  <slot />
+</article>

@@ -1,0 +1,16 @@
+---
+import { getCollection } from "astro:content";
+import PostLayout from "../../layouts/PostLayout.astro";
+
+const { slug } = Astro.params;
+const all = await getCollection("posts");
+const post = all.find((p) => p.slug === slug);
+if (!post) {
+  throw new Error("Post not found");
+}
+const { Content } = await post.render();
+const { title, description, pubDate } = post.data;
+---
+<PostLayout {title} {description} {pubDate}>
+  <Content />
+</PostLayout>

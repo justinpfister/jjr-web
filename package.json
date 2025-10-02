@@ -1,18 +1,14 @@
 {
-  "name": "jjr-web",
-  "private": true,
-  "version": "0.1.0",
+  "name": "extra-equator",
+  "type": "module",
+  "version": "0.0.1",
   "scripts": {
-    "dev": "live-server --no-browser --watch=index.html --host=127.0.0.1",
-    "start": "live-server --port=8080 --no-browser --watch=index.html --host=0.0.0.0",
-    "api": "node server.js"
-  },
-  "devDependencies": {
-    "live-server": "^1.2.2"
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
   },
   "dependencies": {
-    "dotenv": "^17.2.3",
-    "express": "^4.19.2",
-    "marked": "^12.0.2"
+    "astro": "^5.14.1"
   }
 }
