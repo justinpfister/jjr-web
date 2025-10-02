@@ -1,0 +1,6 @@
+node_modules/
+htmloutput/
+*.png
+*.log
+.DS_Store
+
