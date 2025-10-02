@@ -38,6 +38,15 @@ article p { color: var(--text); }
 article .muted { color: var(--muted); }
 hr { border: none; border-top: 1px solid var(--divider); margin: 12px 0; }
 
+/* Gallery */
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.gallery-grid a { display: block; background: var(--panel); border: 1px solid var(--divider); border-radius: 10px; overflow: hidden; }
+.gallery-grid img { width: 100%; height: auto; display: block; }
+
+/* Clickable images in content */
+article img { max-width: 100%; height: auto; border-radius: 8px; }
+article img[onclick] { cursor: pointer; transition: max-width 0.2s ease; }
+
 .btn { background: var(--panel); color: var(--text); border: 1px solid var(--divider); border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
 .btn:hover { border-color: var(--accent); }
 

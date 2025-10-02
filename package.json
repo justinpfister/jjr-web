@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "dotenv": "^17.2.3",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "marked": "^12.0.2"
   }
 }

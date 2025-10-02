@@ -70,6 +70,19 @@ server {
 
 The `/api/content` endpoint reads each file in `content/` and extracts `content-name` comments to build the navigation.
 
+## Writing content in Markdown
+
+- Add `.md` files to `content/` with an optional display name at the top:
+  - `<!-- content-name: My Markdown Page -->`
+- The site lists Markdown files alongside HTML/JS content.
+- Markdown pages are rendered via `/content/md/:file` and wrapped with the shared header/footer automatically.
+
+## Media and Gallery
+
+- Place web-sized images under `media/` (e.g., `media/2025/10/photo.jpg`).
+- Reference directly from Markdown/HTML: `![desc](/media/2025/10/photo.jpg)`.
+- Visit `/gallery` to see all images discovered under `media/` listed automatically.
+
 ### Using shared header/footer
 
 - Place `<header data-include></header>` and `<footer data-include></footer>` in your page.
