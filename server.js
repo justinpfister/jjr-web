@@ -101,8 +101,8 @@ app.get(['/', '/index.html'], async function (req, res) {
     ${header}
     <main class="app-main">
         <section class="hero">
-            <h2 class="page-title">Notes, projects and memories</h2>
-            <p class="lead">A clean place for Justin (JJR) and dad to drop updates, links, photos and ideas.</p>
+            <h2 class="page-title">Notes, projects and other good stuff</h2>
+            <p class="lead">A place JJR to drop updates, links, photos and ideas.</p>
         </section>
         <section>
             <h3 class="section-title">Latest</h3>
