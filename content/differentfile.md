@@ -1,6 +1,6 @@
 <!-- content-name: different file -->
 
-# differentfile
+# let's do awesome things!
 
 Start writing your content here...
 
