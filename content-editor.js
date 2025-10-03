@@ -281,8 +281,8 @@ async function uploadImage(file) {
         const data = await response.json();
         
         if (data.success) {
-            const imageMarkdown = '![' + data.filename + '](../media/' + data.filename + ')';
-            const imageHtml = '<img src="../media/' + data.filename + '" alt="' + data.filename + '" style="max-width: 100%; height: auto;" />';
+            const imageMarkdown = '![' + data.filename + '](/media/' + data.filename + ')';
+            const imageHtml = '<img src="/media/' + data.filename + '" alt="' + data.filename + '" style="max-width: 100%; height: auto;" />';
             
             const currentPos = contentEditor.selectionStart;
             const currentContent = contentEditor.value;
