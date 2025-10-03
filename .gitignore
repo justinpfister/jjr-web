@@ -3,4 +3,6 @@ htmloutput/
 *.png
 *.log
 .DS_Store
+.env
+ecosystem.config.js
 
