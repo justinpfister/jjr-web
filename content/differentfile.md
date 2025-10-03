@@ -8,6 +8,7 @@ Start writing your content here...
 - Write in Markdown
 - Add images by dragging and dropping
 - Auto-saves to git
+-
 
 Happy writing! 🎉
 
