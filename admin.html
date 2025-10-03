@@ -82,6 +82,7 @@
         <div>
             <button id="refreshBtn" class="btn">🔄 Refresh Content</button>
             <button id="healthBtn" class="btn">❤️ Check Health</button>
+            <button id="pm2Btn" class="btn">📊 PM2 Status</button>
         </div>
         
         <div id="status"></div>
@@ -96,6 +97,7 @@
         const tokenInput = document.getElementById('tokenInput');
         const refreshBtn = document.getElementById('refreshBtn');
         const healthBtn = document.getElementById('healthBtn');
+        const pm2Btn = document.getElementById('pm2Btn');
         const status = document.getElementById('status');
         const serverStatus = document.getElementById('serverStatus');
 
@@ -178,6 +180,34 @@
                 }
             } catch (error) {
                 showStatus(`❌ Health check failed: ${error.message}`, 'error');
+            }
+        });
+
+        pm2Btn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/pm2-status');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    let pm2Info = '';
+                    if (data.pm2Processes) {
+                        pm2Info = data.pm2Processes.map(proc => 
+                            `• ${proc.name} (${proc.status}) - ${proc.cpu}% CPU`
+                        ).join('<br>');
+                    } else {
+                        pm2Info = data.pm2Output || 'No PM2 processes found';
+                    }
+                    
+                    showStatus(`
+                        📊 <strong>PM2 Status:</strong><br>
+                        ${pm2Info}<br>
+                        📅 ${new Date(data.timestamp).toLocaleString()}
+                    `, 'info');
+                } else {
+                    showStatus(`❌ PM2 status check failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ PM2 status check failed: ${error.message}`, 'error');
             }
         });
 

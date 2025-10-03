@@ -15,6 +15,33 @@ app.get('/api/health', function (req, res) {
     res.json({ ok: true, ts: Date.now() });
 });
 
+app.get('/api/pm2-status', function (req, res) {
+    exec('pm2 list --json', function (err, stdout, stderr) {
+        if (err) {
+            return res.status(500).json({ 
+                error: 'PM2 status check failed', 
+                details: err.message,
+                stderr: stderr 
+            });
+        }
+        
+        try {
+            const pm2Data = JSON.parse(stdout);
+            res.json({ 
+                success: true, 
+                pm2Processes: pm2Data,
+                timestamp: new Date().toISOString()
+            });
+        } catch (parseErr) {
+            res.json({ 
+                success: true, 
+                pm2Output: stdout,
+                timestamp: new Date().toISOString()
+            });
+        }
+    });
+});
+
 app.get('/api/latest-photo', async function (req, res) {
     try {
         const photo = await googlePhotos.getLatestPhoto();
@@ -78,27 +105,43 @@ app.post('/refreshcontent', function (req, res) {
         
         console.log('✅ Git pull successful:', stdout);
         
-        // Step 2: PM2 reload
-        exec('pm2 reload jjr-web', function (err, stdout, stderr) {
-            if (err) {
-                console.error('❌ PM2 reload failed:', err);
+        // Step 2: PM2 reload - try different process names
+        const pm2ProcessNames = ['jjr-api', 'jjr-web', 'server'];
+        let currentProcessIndex = 0;
+        
+        function tryPm2Reload() {
+            if (currentProcessIndex >= pm2ProcessNames.length) {
                 return res.status(500).json({ 
                     error: 'PM2 reload failed', 
-                    details: err.message,
-                    stderr: stderr 
+                    details: 'No matching PM2 process found. Tried: ' + pm2ProcessNames.join(', '),
+                    suggestion: 'Check PM2 processes with: pm2 list'
                 });
             }
             
-            console.log('✅ PM2 reload successful:', stdout);
+            const processName = pm2ProcessNames[currentProcessIndex];
+            console.log(`🔄 Trying PM2 reload for process: ${processName}`);
             
-            res.json({ 
-                success: true, 
-                message: 'Content refreshed successfully',
-                timestamp: new Date().toISOString(),
-                gitOutput: stdout,
-                pm2Output: stdout
+            exec(`pm2 reload ${processName}`, function (err, stdout, stderr) {
+                if (err) {
+                    console.log(`❌ PM2 reload failed for ${processName}:`, err.message);
+                    currentProcessIndex++;
+                    tryPm2Reload();
+                } else {
+                    console.log(`✅ PM2 reload successful for ${processName}:`, stdout);
+                    
+                    res.json({ 
+                        success: true, 
+                        message: 'Content refreshed successfully',
+                        timestamp: new Date().toISOString(),
+                        gitOutput: stdout,
+                        pm2Output: stdout,
+                        pm2Process: processName
+                    });
+                }
             });
-        });
+        }
+        
+        tryPm2Reload();
     });
 });
 
