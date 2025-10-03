@@ -10,4 +10,5 @@ Start writing your content here...
 - Auto-saves to git
 
 Happy writing! 🎉
+
 ![img_20251003_1759513706351.png](/media/img_20251003_1759513706351.png)
