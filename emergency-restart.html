@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Server Restart - JJR Web</title>
+    <style>
+        body { 
+            font-family: system-ui; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .card { 
+            background: white; 
+            border-radius: 10px; 
+            padding: 20px; 
+            margin: 20px 0; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn { 
+            background: #dc3545; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .btn:hover { background: #c82333; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .status { 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+            font-family: monospace;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .instructions h3 { margin-top: 0; color: #856404; }
+        .instructions ol { margin: 10px 0; }
+        .instructions li { margin: 5px 0; }
+        .code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 3px;
+            padding: 8px;
+            font-family: monospace;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚨 Emergency Server Restart</h1>
+    
+    <div class="card">
+        <h2>Server is Down (502 Error)</h2>
+        <p>Your Node.js server has crashed and needs to be restarted manually.</p>
+        
+        <div class="instructions">
+            <h3>🔧 How to Fix:</h3>
+            <ol>
+                <li><strong>SSH to your EC2 server:</strong>
+                    <div class="code">ssh ubuntu@your-ec2-ip</div>
+                </li>
+                <li><strong>Navigate to your project:</strong>
+                    <div class="code">cd /var/www/jjr-web</div>
+                </li>
+                <li><strong>Check PM2 status:</strong>
+                    <div class="code">pm2 status</div>
+                </li>
+                <li><strong>Restart the server:</strong>
+                    <div class="code">pm2 restart jjr-web</div>
+                </li>
+                <li><strong>If that fails, start fresh:</strong>
+                    <div class="code">pm2 start server.js --name jjr-web</div>
+                </li>
+            </ol>
+        </div>
+        
+        <div>
+            <button id="testConnection" class="btn">🔍 Test Connection</button>
+            <button id="checkStatus" class="btn">📊 Check Status</button>
+        </div>
+        
+        <div id="status"></div>
+    </div>
+    
+    <div class="card">
+        <h2>🔄 Alternative: Use Git Pull Only</h2>
+        <p>Once the server is back online, use the "Git Pull Only" button instead of "Refresh Content" to avoid crashes.</p>
+        
+        <div class="instructions">
+            <h3>📝 Safer Workflow:</h3>
+            <ol>
+                <li>Make changes on GitHub</li>
+                <li>Commit and push</li>
+                <li>Use "📥 Git Pull Only" button</li>
+                <li>Manually restart server if needed: <code>pm2 restart jjr-web</code></li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const testConnection = document.getElementById('testConnection');
+        const checkStatus = document.getElementById('checkStatus');
+        const status = document.getElementById('status');
+
+        function showStatus(message, type = 'info') {
+            status.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        testConnection.addEventListener('click', async () => {
+            showStatus('🔍 Testing connection to server...', 'info');
+            
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showStatus(`
+                        ✅ <strong>Server is back online!</strong><br>
+                        📅 ${new Date(data.ts).toLocaleString()}<br>
+                        <a href="/admin.html">Go to Admin Panel</a>
+                    `, 'success');
+                } else {
+                    showStatus('❌ Server is still down', 'error');
+                }
+            } catch (error) {
+                showStatus(`
+                    ❌ <strong>Server is still down:</strong><br>
+                    ${error.message}<br>
+                    <br>Follow the SSH instructions above to restart the server.
+                `, 'error');
+            }
+        });
+
+        checkStatus.addEventListener('click', async () => {
+            showStatus('📊 Checking server status...', 'info');
+            
+            try {
+                const response = await fetch('/api/test');
+                const data = await response.json();
+                
+                showStatus(`
+                    ✅ <strong>Server is working!</strong><br>
+                    Port: ${data.port}<br>
+                    Node Version: ${data.nodeVersion}<br>
+                    📅 ${new Date(data.timestamp).toLocaleString()}<br>
+                    <a href="/admin.html">Go to Admin Panel</a>
+                `, 'success');
+            } catch (error) {
+                showStatus(`
+                    ❌ <strong>Server is still down:</strong><br>
+                    ${error.message}<br>
+                    <br>Follow the SSH instructions above to restart the server.
+                `, 'error');
+            }
+        });
+
+        // Auto-check on page load
+        setTimeout(() => {
+            testConnection.click();
+        }, 1000);
+    </script>
+</body>
+</html>

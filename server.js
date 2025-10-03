@@ -141,15 +141,19 @@ app.post('/refreshcontent', function (req, res) {
 
     console.log('🔄 Starting content refresh...');
     
+    // Send immediate response to avoid 502 when PM2 reloads
+    res.json({ 
+        success: true, 
+        message: 'Content refresh started',
+        timestamp: new Date().toISOString(),
+        note: 'PM2 reload will happen in background'
+    });
+    
     // Step 1: Git pull from origin main
     exec('git pull origin main', { cwd: __dirname }, function (err, stdout, stderr) {
         if (err) {
             console.error('❌ Git pull failed:', err);
-            return res.status(500).json({ 
-                error: 'Git pull failed', 
-                details: err.message,
-                stderr: stderr 
-            });
+            return;
         }
         
         console.log('✅ Git pull successful:', stdout);
@@ -162,11 +166,8 @@ app.post('/refreshcontent', function (req, res) {
         
         function tryPm2Reload() {
             if (currentProcessIndex >= pm2ProcessNames.length) {
-                return res.status(500).json({ 
-                    error: 'PM2 reload failed', 
-                    details: 'No matching PM2 process found. Tried: ' + pm2ProcessNames.join(', '),
-                    suggestion: 'Check PM2 processes with: pm2 list'
-                });
+                console.error('❌ PM2 reload failed: No matching process found');
+                return;
             }
             
             if (currentMethodIndex >= methods.length) {
@@ -189,21 +190,14 @@ app.post('/refreshcontent', function (req, res) {
                     tryPm2Reload();
                 } else {
                     console.log(`✅ PM2 ${method} successful for ${processName}:`, stdout);
-                    
-                    res.json({ 
-                        success: true, 
-                        message: 'Content refreshed successfully',
-                        timestamp: new Date().toISOString(),
-                        gitOutput: stdout,
-                        pm2Output: stdout,
-                        pm2Process: processName,
-                        pm2Method: method
-                    });
                 }
             });
         }
         
-        tryPm2Reload();
+        // Wait a moment before PM2 reload to ensure response was sent
+        setTimeout(() => {
+            tryPm2Reload();
+        }, 1000);
     });
 });
 
@@ -259,28 +253,24 @@ app.post('/api/restart-server', function (req, res) {
 
     console.log('🔄 Restarting server...');
     
-    // Try to restart the PM2 process
-    exec('pm2 restart jjr-web', function (err, stdout, stderr) {
-        if (err) {
-            console.error('❌ PM2 restart failed:', err);
-            return res.status(500).json({ 
-                error: 'PM2 restart failed', 
-                details: err.message,
-                stderr: stderr,
-                command: 'pm2 restart jjr-web'
-            });
-        }
-        
-        console.log('✅ PM2 restart successful:', stdout);
-        
-        res.json({ 
-            success: true, 
-            message: 'Server restart successful',
-            timestamp: new Date().toISOString(),
-            pm2Output: stdout,
-            command: 'pm2 restart jjr-web'
-        });
+    // Send immediate response to avoid 502 when PM2 restarts
+    res.json({ 
+        success: true, 
+        message: 'Server restart initiated',
+        timestamp: new Date().toISOString(),
+        note: 'PM2 restart will happen in background'
     });
+    
+    // Try to restart the PM2 process in background
+    setTimeout(() => {
+        exec('pm2 restart jjr-web', function (err, stdout, stderr) {
+            if (err) {
+                console.error('❌ PM2 restart failed:', err);
+            } else {
+                console.log('✅ PM2 restart successful:', stdout);
+            }
+        });
+    }, 1000);
 });
 
 // Alternative refresh endpoint that just does git pull without PM2
