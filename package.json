@@ -8,7 +8,8 @@
     "api": "node server.js",
     "reset": "node scripts/reset-server.js",
     "add-image": "node scripts/add-image.js",
-    "setup-refresh": "node scripts/setup-refresh.js"
+    "setup-refresh": "node scripts/setup-refresh.js",
+    "fix-git": "node scripts/fix-git-config.js"
   },
   "devDependencies": {
     "live-server": "^1.2.2"
@@ -16,6 +17,7 @@
   "dependencies": {
     "dotenv": "^17.2.3",
     "express": "^4.19.2",
-    "marked": "^12.0.2"
+    "marked": "^12.0.2",
+    "multer": "^1.4.5-lts.1"
   }
 }

@@ -5,9 +5,42 @@ const googlePhotos = require('./services/googlePhotos');
 const fs = require('fs');
 const { marked } = require('marked');
 const { exec } = require('child_process');
+const multer = require('multer');
 
 const app = express();
 const PORT = config.port;
+
+// Add JSON body parsing middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const mediaDir = path.join(__dirname, 'media');
+        if (!fs.existsSync(mediaDir)) {
+            fs.mkdirSync(mediaDir, { recursive: true });
+        }
+        cb(null, mediaDir);
+    },
+    filename: (req, file, cb) => {
+        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const ext = path.extname(file.originalname);
+        const filename = `img_${timestamp}_${Date.now()}${ext}`;
+        cb(null, filename);
+    }
+});
+
+const upload = multer({ 
+    storage: storage,
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed!'), false);
+        }
+    }
+});
 
 // Static middleware will be registered after SSR route so SSR wins for '/' and '/index.html'
 
@@ -199,6 +232,272 @@ app.post('/refreshcontent', function (req, res) {
             tryPm2Reload();
         }, 1000);
     });
+});
+
+// Content Management API endpoints
+app.get('/api/content/list', function (req, res) {
+    const contentDir = path.join(__dirname, 'content');
+    try {
+        const files = fs.readdirSync(contentDir);
+        const contentFiles = files.filter(f => {
+            const lower = f.toLowerCase();
+            return lower.endsWith('.html') || lower.endsWith('.js') || lower.endsWith('.md');
+        });
+        
+        const items = contentFiles.map(file => {
+            try {
+                const fullPath = path.join(contentDir, file);
+                const text = fs.readFileSync(fullPath, 'utf8');
+                const lower = file.toLowerCase();
+                
+                // Extract content name
+                const matchHtml = text.match(/<!--\s*content-name:\s*([^>]+?)\s*-->/i);
+                const matchJs = text.match(/\/\/\s*content-name:\s*([^\n]+?)\s*$/im);
+                const matchMd = text.match(/^\s*<!--\s*content-name:\s*([^>]+?)\s*-->\s*$/im) || text.match(/^\s*title:\s*(.+)$/im);
+                const match = matchHtml || matchJs || matchMd;
+                const name = (match ? match[1] : file).trim().replace(/\.(html|js|md)$/i, '');
+                
+                return {
+                    filename: file,
+                    name: name,
+                    type: lower.endsWith('.md') ? 'markdown' : (lower.endsWith('.js') ? 'javascript' : 'html'),
+                    size: fs.statSync(fullPath).size,
+                    modified: fs.statSync(fullPath).mtime
+                };
+            } catch (err) {
+                return {
+                    filename: file,
+                    name: file,
+                    type: 'unknown',
+                    size: 0,
+                    modified: new Date()
+                };
+            }
+        });
+        
+        res.json({ success: true, files: items });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to list content files', details: err.message });
+    }
+});
+
+app.get('/api/content/:filename', function (req, res) {
+    const filename = req.params.filename;
+    const safeFilename = filename.replace(/[^a-z0-9._-]/gi, '');
+    const filePath = path.join(__dirname, 'content', safeFilename);
+    
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+    }
+    
+    try {
+        const content = fs.readFileSync(filePath, 'utf8');
+        const stats = fs.statSync(filePath);
+        
+        res.json({
+            success: true,
+            filename: safeFilename,
+            content: content,
+            size: stats.size,
+            modified: stats.mtime
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to read file', details: err.message });
+    }
+});
+
+app.post('/api/content/:filename', function (req, res) {
+    const token = req.headers['x-refresh-token'] || req.query.token;
+    const expectedToken = config.refreshToken;
+    
+    console.log('Save request received:', {
+        filename: req.params.filename,
+        hasToken: !!token,
+        tokenMatch: token === expectedToken,
+        hasContent: !!req.body.content
+    });
+    
+    if (token !== expectedToken) {
+        console.log('Token mismatch:', { received: token, expected: expectedToken });
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const filename = req.params.filename;
+    const safeFilename = filename.replace(/[^a-z0-9._-]/gi, '');
+    const filePath = path.join(__dirname, 'content', safeFilename);
+    
+    console.log('Saving file:', { original: filename, safe: safeFilename, path: filePath });
+    
+    try {
+        // Ensure content directory exists
+        const contentDir = path.join(__dirname, 'content');
+        if (!fs.existsSync(contentDir)) {
+            fs.mkdirSync(contentDir, { recursive: true });
+        }
+        
+        fs.writeFileSync(filePath, req.body.content, 'utf8');
+        console.log('File saved successfully:', filePath);
+        
+        // Auto-commit to git (with better error handling)
+        const commitMessage = `Update ${safeFilename} via content editor`;
+        
+        // First, try to remove any lock files
+        exec('rm -f .git/index.lock', { cwd: __dirname }, function() {
+            // Then try the commit
+            exec(`git add content/${safeFilename} && git commit -m "${commitMessage}"`, { cwd: __dirname }, function (err, stdout, stderr) {
+                if (err) {
+                    console.log('Git commit failed (file still saved):', err.message);
+                    // Try to set git user if that's the issue
+                    if (err.message.includes('Author identity unknown')) {
+                        console.log('Setting git user identity...');
+                        exec('git config user.email "jjr@example.com" && git config user.name "JJR Web Editor"', { cwd: __dirname }, function() {
+                            // Try commit again
+                            exec(`git add content/${safeFilename} && git commit -m "${commitMessage}"`, { cwd: __dirname }, function(err2, stdout2) {
+                                if (err2) {
+                                    console.log('Git commit still failed after setting user:', err2.message);
+                                } else {
+                                    console.log('Git commit successful after setting user:', stdout2);
+                                }
+                            });
+                        });
+                    }
+                } else {
+                    console.log('Git commit successful:', stdout);
+                }
+            });
+        });
+        
+        res.json({ success: true, message: 'File saved and committed to git' });
+    } catch (err) {
+        console.error('Save error:', err);
+        res.status(500).json({ 
+            error: 'Failed to save file', 
+            details: err.message,
+            filename: safeFilename,
+            path: filePath
+        });
+    }
+});
+
+app.delete('/api/content/:filename', function (req, res) {
+    const token = req.headers['x-refresh-token'] || req.query.token;
+    const expectedToken = config.refreshToken;
+    
+    if (token !== expectedToken) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    const filename = req.params.filename;
+    const safeFilename = filename.replace(/[^a-z0-9._-]/gi, '');
+    const filePath = path.join(__dirname, 'content', safeFilename);
+    
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+    }
+    
+    try {
+        fs.unlinkSync(filePath);
+        
+        // Auto-commit deletion to git
+        const commitMessage = `Delete ${safeFilename} via content editor`;
+        exec(`git add content/${safeFilename} && git commit -m "${commitMessage}"`, { cwd: __dirname }, function (err, stdout, stderr) {
+            if (err) {
+                console.log('Git commit failed (file still deleted):', err.message);
+            } else {
+                console.log('Git commit successful:', stdout);
+            }
+        });
+        
+        res.json({ success: true, message: 'File deleted and committed to git' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to delete file', details: err.message });
+    }
+});
+
+// Image upload endpoint
+app.post('/api/upload-image', upload.single('image'), function (req, res) {
+    const token = req.headers['x-refresh-token'] || req.query.token;
+    const expectedToken = config.refreshToken;
+    
+    if (token !== expectedToken) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    if (!req.file) {
+        return res.status(400).json({ error: 'No image uploaded' });
+    }
+    
+    const imageUrl = `/media/${req.file.filename}`;
+    const altText = req.body.alt || req.file.originalname;
+    
+    // Auto-commit image to git (with better error handling)
+    const commitMessage = `Add image ${req.file.filename} via content editor`;
+    
+    // First, try to remove any lock files
+    exec('rm -f .git/index.lock', { cwd: __dirname }, function() {
+        // Then try the commit
+        exec(`git add media/${req.file.filename} && git commit -m "${commitMessage}"`, { cwd: __dirname }, function (err, stdout, stderr) {
+            if (err) {
+                console.log('Git commit failed (image still uploaded):', err.message);
+                // Try to set git user if that's the issue
+                if (err.message.includes('Author identity unknown')) {
+                    console.log('Setting git user identity...');
+                    exec('git config user.email "jjr@example.com" && git config user.name "JJR Web Editor"', { cwd: __dirname }, function() {
+                        // Try commit again
+                        exec(`git add media/${req.file.filename} && git commit -m "${commitMessage}"`, { cwd: __dirname }, function(err2, stdout2) {
+                            if (err2) {
+                                console.log('Git commit still failed after setting user:', err2.message);
+                            } else {
+                                console.log('Git commit successful after setting user:', stdout2);
+                            }
+                        });
+                    });
+                }
+            } else {
+                console.log('Git commit successful:', stdout);
+            }
+        });
+    });
+    
+    res.json({
+        success: true,
+        filename: req.file.filename,
+        url: imageUrl,
+        alt: altText,
+        markdown: `![${altText}](${imageUrl})`,
+        html: `<img src="${imageUrl}" alt="${altText}" style="max-width: 400px; cursor: pointer;" onclick="this.style.maxWidth = this.style.maxWidth === '400px' ? '100%' : '400px'">`
+    });
+});
+
+// Push to GitHub endpoint
+app.post('/api/push-to-github', function (req, res) {
+    const token = req.headers['x-refresh-token'] || req.query.token;
+    const expectedToken = config.refreshToken;
+    
+    if (token !== expectedToken) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    console.log('🚀 Pushing to GitHub...');
+    
+    // Send immediate response
+    res.json({ 
+        success: true, 
+        message: 'Push to GitHub initiated',
+        timestamp: new Date().toISOString(),
+        note: 'Push will happen in background'
+    });
+    
+    // Push to GitHub in background
+    setTimeout(() => {
+        exec('git push origin main', { cwd: __dirname }, function (err, stdout, stderr) {
+            if (err) {
+                console.error('❌ Git push failed:', err);
+            } else {
+                console.log('✅ Git push successful:', stdout);
+            }
+        });
+    }, 1000);
 });
 
 // Test PM2 reload endpoint for debugging

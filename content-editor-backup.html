@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Editor - JJR Web</title>
+    <style>
+        body { 
+            font-family: system-ui; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+        .sidebar {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .main {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn { 
+            background: #007acc; 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 14px;
+            margin: 5px;
+        }
+        .btn:hover { background: #005a9e; }
+        .btn.danger { background: #dc3545; }
+        .btn.danger:hover { background: #c82333; }
+        .btn.success { background: #28a745; }
+        .btn.success:hover { background: #218838; }
+        .btn.small { padding: 4px 8px; font-size: 12px; }
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .file-item {
+            padding: 10px;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            margin: 5px 0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .file-item:hover { background: #f8f9fa; }
+        .file-item.active { background: #e3f2fd; border-color: #007acc; }
+        .file-name { font-weight: bold; }
+        .file-meta { font-size: 12px; color: #666; margin-top: 5px; }
+        .editor {
+            display: none;
+        }
+        .editor.active { display: block; }
+        .editor-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .editor-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0;
+        }
+        .editor-actions {
+            display: flex;
+            gap: 10px;
+        }
+        textarea {
+            width: 100%;
+            height: 500px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            resize: vertical;
+        }
+        .preview {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            background: white;
+            min-height: 500px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+        .token-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .image-upload {
+            border: 2px dashed #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+        }
+        .image-upload:hover { border-color: #007acc; background: #f0f8ff; }
+        .image-upload input { display: none; }
+        .image-snippet {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e9ecef;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .tab.active {
+            border-bottom-color: #007acc;
+            background: #f8f9fa;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>📁 Content Files</h2>
+            <input type="password" id="tokenInput" class="token-input" placeholder="Enter refresh token" />
+            <div>
+                <button id="newFileBtn" class="btn success">➕ New File</button>
+                <button id="refreshListBtn" class="btn">🔄 Refresh</button>
+                <button id="pushBtn" class="btn">🚀 Push to GitHub</button>
+            </div>
+            <ul id="fileList" class="file-list"></ul>
+        </div>
+        
+        <div class="main">
+            <div id="welcome" class="editor active">
+                <h2>📝 Content Editor</h2>
+                <p>Select a file from the sidebar to edit, or create a new file.</p>
+                <p><strong>Features:</strong></p>
+                <ul>
+                    <li>✅ Edit HTML, Markdown, and JavaScript files</li>
+                    <li>✅ Live preview for Markdown</li>
+                    <li>✅ Drag & drop image uploads</li>
+                    <li>✅ Auto-save functionality</li>
+                    <li>✅ File management (create, edit, delete)</li>
+                </ul>
+            </div>
+            
+            <div id="editor" class="editor">
+                <div class="editor-header">
+                    <h3 class="editor-title" id="editorTitle">Untitled</h3>
+                    <div class="editor-actions">
+                        <button id="saveBtn" class="btn success">💾 Save</button>
+                        <button id="deleteBtn" class="btn danger">🗑️ Delete</button>
+                        <button id="closeBtn" class="btn">❌ Close</button>
+                    </div>
+                </div>
+                
+                <div class="tabs">
+                    <div class="tab active" data-tab="edit">✏️ Edit</div>
+                    <div class="tab" data-tab="preview">👁️ Preview</div>
+                </div>
+                
+                <div class="tab-content active" id="editTab">
+                    <div class="image-upload" id="imageUpload">
+                        <p>📷 Drag & drop images here or click to upload</p>
+                        <input type="file" id="imageInput" accept="image/*" multiple>
+                    </div>
+                    
+                    <textarea id="contentEditor" placeholder="Start writing your content..."></textarea>
+                </div>
+                
+                <div class="tab-content" id="previewTab">
+                    <div id="preview" class="preview"></div>
+                </div>
+            </div>
+            
+            <div id="status"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentFile = null;
+        let currentContent = '';
+        let autoSaveTimeout = null;
+        
+        const tokenInput = document.getElementById('tokenInput');
+        const fileList = document.getElementById('fileList');
+        const editor = document.getElementById('editor');
+        const welcome = document.getElementById('welcome');
+        const editorTitle = document.getElementById('editorTitle');
+        const contentEditor = document.getElementById('contentEditor');
+        const preview = document.getElementById('preview');
+        const status = document.getElementById('status');
+        const imageUpload = document.getElementById('imageUpload');
+        const imageInput = document.getElementById('imageInput');
+        const pushBtn = document.getElementById('pushBtn');
+        
+        // Load saved token
+        const savedToken = localStorage.getItem('refreshToken');
+        if (savedToken) {
+            tokenInput.value = savedToken;
+        }
+        
+        // Save token when changed
+        tokenInput.addEventListener('input', function() {
+            localStorage.setItem('refreshToken', tokenInput.value);
+        });
+        
+        function showStatus(message, type) {
+            type = type || 'info';
+            status.innerHTML = '<div class="status ' + type + '">' + message + '</div>';
+        }
+        
+        function getToken() {
+            const token = tokenInput.value.trim();
+            if (!token) {
+                showStatus('Please enter a refresh token', 'error');
+                return null;
+            }
+            return token;
+        }
+        
+        // Load file list
+        async function loadFileList() {
+            try {
+                const response = await fetch('/api/content/list');
+                const data = await response.json();
+                
+                if (data.success) {
+                    fileList.innerHTML = '';
+                    data.files.forEach(function(file) {
+                        const li = document.createElement('li');
+                        li.className = 'file-item';
+                        li.innerHTML = '<div class="file-name">' + file.name + '</div>' +
+                            '<div class="file-meta">' + file.type + ' • ' + 
+                            (file.size / 1024).toFixed(1) + 'KB • ' + 
+                            new Date(file.modified).toLocaleDateString() + '</div>';
+                        li.addEventListener('click', function(e) {
+                            loadFile(file.filename, e.currentTarget);
+                        });
+                        fileList.appendChild(li);
+                    });
+                } else {
+                    showStatus('Failed to load file list', 'error');
+                }
+            } catch (error) {
+                showStatus('Error loading files: ' + error.message, 'error');
+            }
+        }
+        
+        // Load file content
+        async function loadFile(filename, clickedElement) {
+            const token = getToken();
+            if (!token) return;
+            
+            try {
+                const response = await fetch('/api/content/' + filename);
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentFile = filename;
+                    currentContent = data.content;
+                    contentEditor.value = data.content;
+                    editorTitle.textContent = data.filename;
+                    
+                    // Update active file in list
+                    document.querySelectorAll('.file-item').forEach(function(item) {
+                        item.classList.remove('active');
+                    });
+                    if (clickedElement) {
+                        clickedElement.classList.add('active');
+                    }
+                    
+                    // Show editor
+                    welcome.classList.remove('active');
+                    editor.classList.add('active');
+                    
+                    // Update preview if markdown
+                    updatePreview();
+                } else {
+                    showStatus('Failed to load file', 'error');
+                }
+            } catch (error) {
+                showStatus('Error loading file: ' + error.message, 'error');
+            }
+        }
+        
+        // Save file
+        async function saveFile() {
+            if (!currentFile) {
+                showStatus('No file selected to save', 'error');
+                return;
+            }
+            
+            const token = getToken();
+            if (!token) return;
+            
+            const content = contentEditor.value;
+            
+            showStatus('Saving file...', 'info');
+            
+            try {
+                const response = await fetch('/api/content/' + currentFile, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Refresh-Token': token
+                    },
+                    body: JSON.stringify({ content: content })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('File saved successfully', 'success');
+                    currentContent = content;
+                    loadFileList(); // Refresh list to update timestamps
+                } else {
+                    showStatus('Save failed: ' + data.error + (data.details ? ' - ' + data.details : ''), 'error');
+                }
+            } catch (error) {
+                showStatus('Error saving file: ' + error.message, 'error');
+            }
+        }
+        
+        // Create new file
+        function createNewFile() {
+            const filename = prompt('Enter filename (e.g., my-page.md, my-page.html):');
+            if (!filename) return;
+            
+            // Validate filename
+            if (!filename.match(/^[a-zA-Z0-9._-]+$/)) {
+                showStatus('Invalid filename. Use only letters, numbers, dots, hyphens, and underscores.', 'error');
+                return;
+            }
+            
+            // Add extension if not provided
+            let finalFilename = filename;
+            if (!filename.includes('.')) {
+                finalFilename = filename + '.md'; // Default to markdown
+            }
+            
+            // Check if file already exists
+            const existingFiles = Array.from(fileList.children).map(function(li) {
+                const nameDiv = li.querySelector('.file-name');
+                return nameDiv ? nameDiv.textContent : '';
+            });
+            
+            if (existingFiles.includes(finalFilename)) {
+                showStatus('File already exists. Please choose a different name.', 'error');
+                return;
+            }
+            
+            // Create the new file
+            currentFile = finalFilename;
+            currentContent = '';
+            
+            // Set default content based on file type
+            const ext = finalFilename.split('.').pop().toLowerCase();
+            let defaultContent = '';
+            
+            if (ext === 'md') {
+                const baseName = finalFilename.replace(/\.[^/.]+$/, "");
+                const displayName = baseName.replace(/[-_]/g, ' ');
+                defaultContent = '<!-- content-name: ' + baseName + ' -->\n\n' +
+                    '# ' + displayName + '\n\n' +
+                    'Start writing your content here...\n\n' +
+                    '## Features\n' +
+                    '- Write in Markdown\n' +
+                    '- Add images by dragging and dropping\n' +
+                    '- Auto-saves to git\n\n' +
+                    'Happy writing! 🎉';
+            } else if (ext === 'html') {
+                const baseName = finalFilename.replace(/\.[^/.]+$/, "");
+                const displayName = baseName.replace(/[-_]/g, ' ');
+                defaultContent = '<!DOCTYPE html>\n' +
+                    '<!-- content-name: ' + baseName + ' -->\n' +
+                    '<html lang="en">\n' +
+                    '<head>\n' +
+                    '    <meta charset="UTF-8">\n' +
+                    '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+                    '    <title>' + displayName + '</title>\n' +
+                    '    <link rel="stylesheet" href="../assets/css/styles.css">\n' +
+                    '    <script src="../assets/js/layout.js" defer></script>\n' +
+                    '</head>\n' +
+                    '<body>\n' +
+                    '    <header data-include></header>\n' +
+                    '    <main class="app-main">\n' +
+                    '        <article>\n' +
+                    '            <h1>' + displayName + '</h1>\n' +
+                    '            <p>Start writing your content here...</p>\n' +
+                    '        </article>\n' +
+                    '    </main>\n' +
+                    '    <footer data-include></footer>\n' +
+                    '</body>\n' +
+                    '</html>';
+            } else if (ext === 'js') {
+                const baseName = finalFilename.replace(/\.[^/.]+$/, "");
+                defaultContent = '// content-name: ' + baseName + '\n\n' +
+                    '// Your JavaScript content here\n' +
+                    'console.log(\'Hello from ' + finalFilename + '!\');';
+            } else {
+                const baseName = finalFilename.replace(/\.[^/.]+$/, "");
+                defaultContent = '<!-- content-name: ' + baseName + ' -->\n\n' +
+                    'Start writing your content here...';
+            }
+            
+            contentEditor.value = defaultContent;
+            editorTitle.textContent = finalFilename;
+            
+            // Show editor
+            welcome.classList.remove('active');
+            editor.classList.add('active');
+            
+            // Clear any active file selection
+            document.querySelectorAll('.file-item').forEach(function(item) {
+                item.classList.remove('active');
+            });
+            
+            showStatus('New file "' + finalFilename + '" created. Click Save to create the file.', 'info');
+        }
+        
+        // Update preview
+        function updatePreview() {
+            if (!currentFile || !currentFile.endsWith('.md')) {
+                preview.innerHTML = '<p>Preview only available for Markdown files</p>';
+                return;
+            }
+            
+            // Simple markdown preview
+            const content = contentEditor.value;
+            const html = content
+                .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
+                .replace(/\*(.*)\*/gim, '<em>$1</em>')
+                .replace(/!\[([^\]]*)\]\(([^)]*)\)/gim, '<img src="$2" alt="$1" style="max-width: 100%;">')
+                .replace(/\[([^\]]*)\]\(([^)]*)\)/gim, '<a href="$2">$1</a>')
+                .replace(/\n/gim, '<br>');
+            
+            preview.innerHTML = html;
+        }
+        
+        // Upload image
+        async function uploadImage(file) {
+            const token = getToken();
+            if (!token) return;
+            
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('alt', file.name);
+            
+            try {
+                const response = await fetch('/api/upload-image', {
+                    method: 'POST',
+                    headers: {
+                        'X-Refresh-Token': token
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Insert markdown into editor
+                    const cursorPos = contentEditor.selectionStart;
+                    const textBefore = contentEditor.value.substring(0, cursorPos);
+                    const textAfter = contentEditor.value.substring(cursorPos);
+                    contentEditor.value = textBefore + data.markdown + '\n' + textAfter;
+                    
+                    showStatus('Image uploaded successfully', 'success');
+                    updatePreview();
+                } else {
+                    showStatus('Upload failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('Error uploading image: ' + error.message, 'error');
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('newFileBtn').addEventListener('click', createNewFile);
+        document.getElementById('refreshListBtn').addEventListener('click', loadFileList);
+        document.getElementById('saveBtn').addEventListener('click', saveFile);
+        document.getElementById('closeBtn').addEventListener('click', function() {
+            currentFile = null;
+            currentContent = '';
+            contentEditor.value = '';
+            editor.classList.remove('active');
+            welcome.classList.add('active');
+            document.querySelectorAll('.file-item').forEach(function(item) {
+                item.classList.remove('active');
+            });
+        });
+        pushBtn.addEventListener('click', function() {
+            const token = getToken();
+            if (!token) return;
+            
+            fetch('/api/push-to-github', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Refresh-Token': token
+                }
+            }).then(function(response) {
+                return response.json();
+            }).then(function(data) {
+                if (data.success) {
+                    showStatus('🚀 Pushing to GitHub...', 'info');
+                } else {
+                    showStatus('Push failed: ' + data.error, 'error');
+                }
+            }).catch(function(error) {
+                showStatus('Error pushing to GitHub: ' + error.message, 'error');
+            });
+        });
+        
+        // Auto-save on content change
+        contentEditor.addEventListener('input', function() {
+            clearTimeout(autoSaveTimeout);
+            autoSaveTimeout = setTimeout(function() {
+                if (currentFile && contentEditor.value !== currentContent) {
+                    saveFile();
+                }
+            }, 2000);
+        });
+        
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                const tabName = tab.dataset.tab;
+                
+                // Update tab states
+                document.querySelectorAll('.tab').forEach(function(t) {
+                    t.classList.remove('active');
+                });
+                document.querySelectorAll('.tab-content').forEach(function(c) {
+                    c.classList.remove('active');
+                });
+                
+                tab.classList.add('active');
+                document.getElementById(tabName + 'Tab').classList.add('active');
+                
+                if (tabName === 'preview') {
+                    updatePreview();
+                }
+            });
+        });
+        
+        // Image upload
+        imageUpload.addEventListener('click', function() {
+            imageInput.click();
+        });
+        imageUpload.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            imageUpload.style.borderColor = '#007acc';
+            imageUpload.style.background = '#f0f8ff';
+        });
+        imageUpload.addEventListener('dragleave', function() {
+            imageUpload.style.borderColor = '#ccc';
+            imageUpload.style.background = 'white';
+        });
+        imageUpload.addEventListener('drop', function(e) {
+            e.preventDefault();
+            imageUpload.style.borderColor = '#ccc';
+            imageUpload.style.background = 'white';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                uploadImage(files[0]);
+            }
+        });
+        imageInput.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                uploadImage(e.target.files[0]);
+            }
+        });
+        
+        // Load file list on page load
+        loadFileList();
+    </script>
+</body>
+</html>
