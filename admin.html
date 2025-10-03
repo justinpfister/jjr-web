@@ -85,6 +85,7 @@
             <button id="healthBtn" class="btn">❤️ Check Health</button>
             <button id="pm2Btn" class="btn">📊 PM2 Status</button>
             <button id="testBtn" class="btn">🧪 Test API</button>
+            <button id="pm2TestBtn" class="btn">🔄 Test PM2 Reload</button>
         </div>
         
         <div id="status"></div>
@@ -102,6 +103,7 @@
         const healthBtn = document.getElementById('healthBtn');
         const pm2Btn = document.getElementById('pm2Btn');
         const testBtn = document.getElementById('testBtn');
+        const pm2TestBtn = document.getElementById('pm2TestBtn');
         const status = document.getElementById('status');
         const serverStatus = document.getElementById('serverStatus');
 
@@ -299,6 +301,51 @@
                 `, 'error');
             } finally {
                 setLoading(simpleRefreshBtn, false);
+            }
+        });
+
+        pm2TestBtn.addEventListener('click', async () => {
+            const token = tokenInput.value.trim();
+            if (!token) {
+                showStatus('Please enter a refresh token', 'error');
+                return;
+            }
+
+            setLoading(pm2TestBtn, true);
+            showStatus('🔄 Testing PM2 reload...', 'info');
+
+            try {
+                const response = await fetch('/api/test-pm2-reload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Refresh-Token': token
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus(`
+                        ✅ <strong>PM2 reload test successful!</strong><br>
+                        Command: ${data.command}<br>
+                        📅 ${new Date(data.timestamp).toLocaleString()}
+                    `, 'success');
+                } else {
+                    showStatus(`
+                        ❌ <strong>PM2 reload test failed:</strong><br>
+                        ${data.error || 'Unknown error'}<br>
+                        Command: ${data.command || 'pm2 reload jjr-web'}<br>
+                        Details: ${data.details || ''}
+                    `, 'error');
+                }
+            } catch (error) {
+                showStatus(`
+                    ❌ <strong>Network error:</strong><br>
+                    ${error.message}
+                `, 'error');
+            } finally {
+                setLoading(pm2TestBtn, false);
             }
         });
 

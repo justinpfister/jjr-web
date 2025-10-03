@@ -154,9 +154,11 @@ app.post('/refreshcontent', function (req, res) {
         
         console.log('✅ Git pull successful:', stdout);
         
-        // Step 2: PM2 reload - try different process names
-        const pm2ProcessNames = ['jjr-api', 'jjr-web', 'server'];
+        // Step 2: PM2 reload - try different approaches
+        const pm2ProcessNames = ['jjr-web', 'jjr-api', 'server'];
         let currentProcessIndex = 0;
+        let currentMethodIndex = 0;
+        const methods = ['reload', 'restart', 'gracefulReload'];
         
         function tryPm2Reload() {
             if (currentProcessIndex >= pm2ProcessNames.length) {
@@ -167,16 +169,26 @@ app.post('/refreshcontent', function (req, res) {
                 });
             }
             
-            const processName = pm2ProcessNames[currentProcessIndex];
-            console.log(`🔄 Trying PM2 reload for process: ${processName}`);
+            if (currentMethodIndex >= methods.length) {
+                currentProcessIndex++;
+                currentMethodIndex = 0;
+                tryPm2Reload();
+                return;
+            }
             
-            exec(`pm2 reload ${processName}`, function (err, stdout, stderr) {
+            const processName = pm2ProcessNames[currentProcessIndex];
+            const method = methods[currentMethodIndex];
+            const command = `pm2 ${method} ${processName}`;
+            
+            console.log(`🔄 Trying PM2 ${method} for process: ${processName}`);
+            
+            exec(command, function (err, stdout, stderr) {
                 if (err) {
-                    console.log(`❌ PM2 reload failed for ${processName}:`, err.message);
-                    currentProcessIndex++;
+                    console.log(`❌ PM2 ${method} failed for ${processName}:`, err.message);
+                    currentMethodIndex++;
                     tryPm2Reload();
                 } else {
-                    console.log(`✅ PM2 reload successful for ${processName}:`, stdout);
+                    console.log(`✅ PM2 ${method} successful for ${processName}:`, stdout);
                     
                     res.json({ 
                         success: true, 
@@ -184,13 +196,52 @@ app.post('/refreshcontent', function (req, res) {
                         timestamp: new Date().toISOString(),
                         gitOutput: stdout,
                         pm2Output: stdout,
-                        pm2Process: processName
+                        pm2Process: processName,
+                        pm2Method: method
                     });
                 }
             });
         }
         
         tryPm2Reload();
+    });
+});
+
+// Test PM2 reload endpoint for debugging
+app.post('/api/test-pm2-reload', function (req, res) {
+    const token = req.headers['x-refresh-token'] || req.query.token;
+    const expectedToken = config.refreshToken;
+    
+    if (token !== expectedToken) {
+        return res.status(401).json({ 
+            error: 'Unauthorized', 
+            message: 'Valid refresh token required' 
+        });
+    }
+
+    console.log('🧪 Testing PM2 reload...');
+    
+    // Try to reload jjr-web specifically
+    exec('pm2 reload jjr-web', function (err, stdout, stderr) {
+        if (err) {
+            console.error('❌ PM2 reload test failed:', err);
+            return res.status(500).json({ 
+                error: 'PM2 reload test failed', 
+                details: err.message,
+                stderr: stderr,
+                command: 'pm2 reload jjr-web'
+            });
+        }
+        
+        console.log('✅ PM2 reload test successful:', stdout);
+        
+        res.json({ 
+            success: true, 
+            message: 'PM2 reload test successful',
+            timestamp: new Date().toISOString(),
+            pm2Output: stdout,
+            command: 'pm2 reload jjr-web'
+        });
     });
 });
 
