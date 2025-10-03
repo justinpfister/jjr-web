@@ -15,6 +15,16 @@ app.get('/api/health', function (req, res) {
     res.json({ ok: true, ts: Date.now() });
 });
 
+// Simple test endpoint for debugging
+app.get('/api/test', function (req, res) {
+    res.json({ 
+        message: 'Server is working!', 
+        timestamp: new Date().toISOString(),
+        port: PORT,
+        nodeVersion: process.version
+    });
+});
+
 app.get('/api/pm2-status', function (req, res) {
     exec('pm2 list --json', function (err, stdout, stderr) {
         if (err) {

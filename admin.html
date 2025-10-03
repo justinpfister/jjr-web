@@ -83,6 +83,7 @@
             <button id="refreshBtn" class="btn">🔄 Refresh Content</button>
             <button id="healthBtn" class="btn">❤️ Check Health</button>
             <button id="pm2Btn" class="btn">📊 PM2 Status</button>
+            <button id="testBtn" class="btn">🧪 Test API</button>
         </div>
         
         <div id="status"></div>
@@ -98,6 +99,7 @@
         const refreshBtn = document.getElementById('refreshBtn');
         const healthBtn = document.getElementById('healthBtn');
         const pm2Btn = document.getElementById('pm2Btn');
+        const testBtn = document.getElementById('testBtn');
         const status = document.getElementById('status');
         const serverStatus = document.getElementById('serverStatus');
 
@@ -139,6 +141,19 @@
                         'X-Refresh-Token': token
                     }
                 });
+
+                // Check if response is actually JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    showStatus(`
+                        ❌ <strong>Server returned non-JSON response:</strong><br>
+                        Status: ${response.status} ${response.statusText}<br>
+                        Content-Type: ${contentType || 'unknown'}<br>
+                        Response: ${text.substring(0, 200)}${text.length > 200 ? '...' : ''}
+                    `, 'error');
+                    return;
+                }
 
                 const data = await response.json();
 
@@ -208,6 +223,23 @@
                 }
             } catch (error) {
                 showStatus(`❌ PM2 status check failed: ${error.message}`, 'error');
+            }
+        });
+
+        testBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/test');
+                const data = await response.json();
+                
+                showStatus(`
+                    🧪 <strong>API Test Successful!</strong><br>
+                    Message: ${data.message}<br>
+                    Port: ${data.port}<br>
+                    Node Version: ${data.nodeVersion}<br>
+                    📅 ${new Date(data.timestamp).toLocaleString()}
+                `, 'success');
+            } catch (error) {
+                showStatus(`❌ API test failed: ${error.message}`, 'error');
             }
         });
 
