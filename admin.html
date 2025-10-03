@@ -81,6 +81,7 @@
         
         <div>
             <button id="refreshBtn" class="btn">🔄 Refresh Content</button>
+            <button id="simpleRefreshBtn" class="btn">📥 Git Pull Only</button>
             <button id="healthBtn" class="btn">❤️ Check Health</button>
             <button id="pm2Btn" class="btn">📊 PM2 Status</button>
             <button id="testBtn" class="btn">🧪 Test API</button>
@@ -97,6 +98,7 @@
     <script>
         const tokenInput = document.getElementById('tokenInput');
         const refreshBtn = document.getElementById('refreshBtn');
+        const simpleRefreshBtn = document.getElementById('simpleRefreshBtn');
         const healthBtn = document.getElementById('healthBtn');
         const pm2Btn = document.getElementById('pm2Btn');
         const testBtn = document.getElementById('testBtn');
@@ -240,6 +242,63 @@
                 `, 'success');
             } catch (error) {
                 showStatus(`❌ API test failed: ${error.message}`, 'error');
+            }
+        });
+
+        simpleRefreshBtn.addEventListener('click', async () => {
+            const token = tokenInput.value.trim();
+            if (!token) {
+                showStatus('Please enter a refresh token', 'error');
+                return;
+            }
+
+            setLoading(simpleRefreshBtn, true);
+            showStatus('📥 Pulling latest changes from GitHub (no PM2 reload)...', 'info');
+
+            try {
+                const response = await fetch('/refreshcontent-simple', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Refresh-Token': token
+                    }
+                });
+
+                // Check if response is actually JSON
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    showStatus(`
+                        ❌ <strong>Server returned non-JSON response:</strong><br>
+                        Status: ${response.status} ${response.statusText}<br>
+                        Content-Type: ${contentType || 'unknown'}<br>
+                        Response: ${text.substring(0, 200)}${text.length > 200 ? '...' : ''}
+                    `, 'error');
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus(`
+                        ✅ <strong>Git pull successful!</strong><br>
+                        📅 ${new Date(data.timestamp).toLocaleString()}<br>
+                        📝 ${data.note || ''}
+                    `, 'success');
+                } else {
+                    showStatus(`
+                        ❌ <strong>Git pull failed:</strong><br>
+                        ${data.error || 'Unknown error'}<br>
+                        ${data.message || ''}
+                    `, 'error');
+                }
+            } catch (error) {
+                showStatus(`
+                    ❌ <strong>Network error:</strong><br>
+                    ${error.message}
+                `, 'error');
+            } finally {
+                setLoading(simpleRefreshBtn, false);
             }
         });
 

@@ -26,30 +26,69 @@ app.get('/api/test', function (req, res) {
 });
 
 app.get('/api/pm2-status', function (req, res) {
-    exec('pm2 list --json', function (err, stdout, stderr) {
-        if (err) {
+    // Try multiple PM2 commands to see what works
+    const commands = [
+        'pm2 list --json',
+        'pm2 list',
+        'pm2 status',
+        'which pm2',
+        'pm2 --version'
+    ];
+    
+    let currentCommandIndex = 0;
+    
+    function tryCommand() {
+        if (currentCommandIndex >= commands.length) {
             return res.status(500).json({ 
-                error: 'PM2 status check failed', 
-                details: err.message,
-                stderr: stderr 
+                error: 'All PM2 commands failed', 
+                details: 'PM2 may not be installed or accessible',
+                suggestion: 'Try running: npm install -g pm2'
             });
         }
         
-        try {
-            const pm2Data = JSON.parse(stdout);
-            res.json({ 
-                success: true, 
-                pm2Processes: pm2Data,
-                timestamp: new Date().toISOString()
-            });
-        } catch (parseErr) {
-            res.json({ 
-                success: true, 
-                pm2Output: stdout,
-                timestamp: new Date().toISOString()
-            });
-        }
-    });
+        const command = commands[currentCommandIndex];
+        console.log(`Trying PM2 command: ${command}`);
+        
+        exec(command, function (err, stdout, stderr) {
+            if (err) {
+                console.log(`Command failed: ${command} - ${err.message}`);
+                currentCommandIndex++;
+                tryCommand();
+            } else {
+                console.log(`Command succeeded: ${command}`);
+                
+                // Try to parse as JSON if it's the json command
+                if (command.includes('--json')) {
+                    try {
+                        const pm2Data = JSON.parse(stdout);
+                        res.json({ 
+                            success: true, 
+                            pm2Processes: pm2Data,
+                            command: command,
+                            timestamp: new Date().toISOString()
+                        });
+                    } catch (parseErr) {
+                        res.json({ 
+                            success: true, 
+                            pm2Output: stdout,
+                            command: command,
+                            parseError: parseErr.message,
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+                } else {
+                    res.json({ 
+                        success: true, 
+                        pm2Output: stdout,
+                        command: command,
+                        timestamp: new Date().toISOString()
+                    });
+                }
+            }
+        });
+    }
+    
+    tryCommand();
 });
 
 app.get('/api/latest-photo', async function (req, res) {
@@ -152,6 +191,43 @@ app.post('/refreshcontent', function (req, res) {
         }
         
         tryPm2Reload();
+    });
+});
+
+// Alternative refresh endpoint that just does git pull without PM2
+app.post('/refreshcontent-simple', function (req, res) {
+    const token = req.headers['x-refresh-token'] || req.query.token;
+    const expectedToken = config.refreshToken;
+    
+    if (token !== expectedToken) {
+        return res.status(401).json({ 
+            error: 'Unauthorized', 
+            message: 'Valid refresh token required' 
+        });
+    }
+
+    console.log('🔄 Starting simple content refresh (git pull only)...');
+    
+    // Just do git pull - no PM2 reload
+    exec('git pull origin main', { cwd: __dirname }, function (err, stdout, stderr) {
+        if (err) {
+            console.error('❌ Git pull failed:', err);
+            return res.status(500).json({ 
+                error: 'Git pull failed', 
+                details: err.message,
+                stderr: stderr 
+            });
+        }
+        
+        console.log('✅ Git pull successful:', stdout);
+        
+        res.json({ 
+            success: true, 
+            message: 'Content refreshed successfully (git pull only)',
+            timestamp: new Date().toISOString(),
+            gitOutput: stdout,
+            note: 'Server restart may be needed manually'
+        });
     });
 });
 
