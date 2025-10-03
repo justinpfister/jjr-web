@@ -4,6 +4,7 @@ const config = require('./config');
 const googlePhotos = require('./services/googlePhotos');
 const fs = require('fs');
 const { marked } = require('marked');
+const { exec } = require('child_process');
 
 const app = express();
 const PORT = config.port;
@@ -47,6 +48,57 @@ app.get('/api/content', function (req, res) {
             } catch (_) { /* ignore */ }
         });
         res.json(items);
+    });
+});
+
+// Refresh content endpoint - pulls from GitHub and reloads PM2
+app.post('/refreshcontent', function (req, res) {
+    const token = req.headers['x-refresh-token'] || req.query.token;
+    const expectedToken = config.refreshToken;
+    
+    if (token !== expectedToken) {
+        return res.status(401).json({ 
+            error: 'Unauthorized', 
+            message: 'Valid refresh token required' 
+        });
+    }
+
+    console.log('🔄 Starting content refresh...');
+    
+    // Step 1: Git pull from origin main
+    exec('git pull origin main', { cwd: __dirname }, function (err, stdout, stderr) {
+        if (err) {
+            console.error('❌ Git pull failed:', err);
+            return res.status(500).json({ 
+                error: 'Git pull failed', 
+                details: err.message,
+                stderr: stderr 
+            });
+        }
+        
+        console.log('✅ Git pull successful:', stdout);
+        
+        // Step 2: PM2 reload
+        exec('pm2 reload jjr-web', function (err, stdout, stderr) {
+            if (err) {
+                console.error('❌ PM2 reload failed:', err);
+                return res.status(500).json({ 
+                    error: 'PM2 reload failed', 
+                    details: err.message,
+                    stderr: stderr 
+                });
+            }
+            
+            console.log('✅ PM2 reload successful:', stdout);
+            
+            res.json({ 
+                success: true, 
+                message: 'Content refreshed successfully',
+                timestamp: new Date().toISOString(),
+                gitOutput: stdout,
+                pm2Output: stdout
+            });
+        });
     });
 });
 

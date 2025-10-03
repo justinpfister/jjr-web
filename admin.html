@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - JJR Web</title>
+    <style>
+        body { 
+            font-family: system-ui; 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .card { 
+            background: white; 
+            border-radius: 10px; 
+            padding: 20px; 
+            margin: 20px 0; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn { 
+            background: #007acc; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .btn:hover { background: #005a9e; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .btn.danger { background: #dc3545; }
+        .btn.danger:hover { background: #c82333; }
+        .status { 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+            font-family: monospace;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+        .token-input { 
+            width: 100%; 
+            padding: 8px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px; 
+            margin: 10px 0;
+        }
+        .workflow { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 15px 0;
+        }
+        .workflow h3 { margin-top: 0; color: #495057; }
+        .workflow ol { margin: 10px 0; }
+        .workflow li { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>🛠️ JJR Web Admin</h1>
+    
+    <div class="card">
+        <h2>Content Refresh</h2>
+        <p>Pull latest changes from GitHub and reload the server.</p>
+        
+        <div class="workflow">
+            <h3>📝 Your Workflow:</h3>
+            <ol>
+                <li>Edit content on GitHub (web interface or local)</li>
+                <li>Commit and push changes</li>
+                <li>Click "Refresh Content" below</li>
+                <li>Server automatically pulls and reloads!</li>
+            </ol>
+        </div>
+        
+        <input type="password" id="tokenInput" class="token-input" placeholder="Enter refresh token" />
+        
+        <div>
+            <button id="refreshBtn" class="btn">🔄 Refresh Content</button>
+            <button id="healthBtn" class="btn">❤️ Check Health</button>
+        </div>
+        
+        <div id="status"></div>
+    </div>
+    
+    <div class="card">
+        <h2>Server Status</h2>
+        <div id="serverStatus">Loading...</div>
+    </div>
+
+    <script>
+        const tokenInput = document.getElementById('tokenInput');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const healthBtn = document.getElementById('healthBtn');
+        const status = document.getElementById('status');
+        const serverStatus = document.getElementById('serverStatus');
+
+        // Load saved token
+        const savedToken = localStorage.getItem('refreshToken');
+        if (savedToken) {
+            tokenInput.value = savedToken;
+        }
+
+        // Save token when changed
+        tokenInput.addEventListener('input', () => {
+            localStorage.setItem('refreshToken', tokenInput.value);
+        });
+
+        function showStatus(message, type = 'info') {
+            status.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function setLoading(button, loading) {
+            button.disabled = loading;
+            button.textContent = loading ? '⏳ Loading...' : button.textContent.replace('⏳ Loading...', '🔄 Refresh Content');
+        }
+
+        refreshBtn.addEventListener('click', async () => {
+            const token = tokenInput.value.trim();
+            if (!token) {
+                showStatus('Please enter a refresh token', 'error');
+                return;
+            }
+
+            setLoading(refreshBtn, true);
+            showStatus('🔄 Pulling latest changes from GitHub...', 'info');
+
+            try {
+                const response = await fetch('/refreshcontent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Refresh-Token': token
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus(`
+                        ✅ <strong>Content refreshed successfully!</strong><br>
+                        📅 ${new Date(data.timestamp).toLocaleString()}<br>
+                        🔄 Server reloaded with latest changes
+                    `, 'success');
+                } else {
+                    showStatus(`
+                        ❌ <strong>Refresh failed:</strong><br>
+                        ${data.error || 'Unknown error'}<br>
+                        ${data.message || ''}
+                    `, 'error');
+                }
+            } catch (error) {
+                showStatus(`
+                    ❌ <strong>Network error:</strong><br>
+                    ${error.message}
+                `, 'error');
+            } finally {
+                setLoading(refreshBtn, false);
+            }
+        });
+
+        healthBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showStatus(`
+                        ✅ <strong>Server is healthy!</strong><br>
+                        📅 ${new Date(data.ts).toLocaleString()}
+                    `, 'success');
+                } else {
+                    showStatus('❌ Server health check failed', 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Health check failed: ${error.message}`, 'error');
+            }
+        });
+
+        // Auto-check server status on load
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    serverStatus.innerHTML = `
+                        <div class="status success">
+                            ✅ Server is running<br>
+                            📅 Last check: ${new Date(data.ts).toLocaleString()}
+                        </div>
+                    `;
+                } else {
+                    serverStatus.innerHTML = '<div class="status error">❌ Server health check failed</div>';
+                }
+            } catch (error) {
+                serverStatus.innerHTML = `<div class="status error">❌ Cannot reach server: ${error.message}</div>`;
+            }
+        }
+
+        checkServerStatus();
+    </script>
+</body>
+</html>

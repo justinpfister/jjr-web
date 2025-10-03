@@ -8,6 +8,7 @@ function parseBoolean(value, defaultValue) {
 
 module.exports = {
     port: Number(process.env.PORT || 3000),
+    refreshToken: process.env.REFRESH_TOKEN || 'dev-token-123',
     google: {
         albumId: process.env.GOOGLE_PHOTOS_ALBUM_ID || '',
         peopleFilter: process.env.GOOGLE_PEOPLE_FILTER || '', // e.g., "Justin Pfister,jjr,dad"

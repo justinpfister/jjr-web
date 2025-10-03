@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "live-server --no-browser --watch=index.html --host=127.0.0.1",
     "start": "live-server --port=8080 --no-browser --watch=index.html --host=0.0.0.0",
-    "api": "node server.js"
+    "api": "node server.js",
+    "reset": "node scripts/reset-server.js",
+    "add-image": "node scripts/add-image.js",
+    "setup-refresh": "node scripts/setup-refresh.js"
   },
   "devDependencies": {
     "live-server": "^1.2.2"
