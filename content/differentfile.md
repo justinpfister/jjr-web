@@ -1,4 +1,4 @@
-<!-- content-name: differentfile -->
+<!-- content-name: different file -->
 
 # differentfile
 
