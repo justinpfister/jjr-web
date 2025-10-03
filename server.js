@@ -245,6 +245,44 @@ app.post('/api/test-pm2-reload', function (req, res) {
     });
 });
 
+// Server restart endpoint
+app.post('/api/restart-server', function (req, res) {
+    const token = req.headers['x-refresh-token'] || req.query.token;
+    const expectedToken = config.refreshToken;
+    
+    if (token !== expectedToken) {
+        return res.status(401).json({ 
+            error: 'Unauthorized', 
+            message: 'Valid refresh token required' 
+        });
+    }
+
+    console.log('🔄 Restarting server...');
+    
+    // Try to restart the PM2 process
+    exec('pm2 restart jjr-web', function (err, stdout, stderr) {
+        if (err) {
+            console.error('❌ PM2 restart failed:', err);
+            return res.status(500).json({ 
+                error: 'PM2 restart failed', 
+                details: err.message,
+                stderr: stderr,
+                command: 'pm2 restart jjr-web'
+            });
+        }
+        
+        console.log('✅ PM2 restart successful:', stdout);
+        
+        res.json({ 
+            success: true, 
+            message: 'Server restart successful',
+            timestamp: new Date().toISOString(),
+            pm2Output: stdout,
+            command: 'pm2 restart jjr-web'
+        });
+    });
+});
+
 // Alternative refresh endpoint that just does git pull without PM2
 app.post('/refreshcontent-simple', function (req, res) {
     const token = req.headers['x-refresh-token'] || req.query.token;

@@ -86,6 +86,7 @@
             <button id="pm2Btn" class="btn">📊 PM2 Status</button>
             <button id="testBtn" class="btn">🧪 Test API</button>
             <button id="pm2TestBtn" class="btn">🔄 Test PM2 Reload</button>
+            <button id="restartBtn" class="btn danger">🔄 Restart Server</button>
         </div>
         
         <div id="status"></div>
@@ -104,6 +105,7 @@
         const pm2Btn = document.getElementById('pm2Btn');
         const testBtn = document.getElementById('testBtn');
         const pm2TestBtn = document.getElementById('pm2TestBtn');
+        const restartBtn = document.getElementById('restartBtn');
         const status = document.getElementById('status');
         const serverStatus = document.getElementById('serverStatus');
 
@@ -346,6 +348,61 @@
                 `, 'error');
             } finally {
                 setLoading(pm2TestBtn, false);
+            }
+        });
+
+        restartBtn.addEventListener('click', async () => {
+            const token = tokenInput.value.trim();
+            if (!token) {
+                showStatus('Please enter a refresh token', 'error');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to restart the server? This will cause a brief downtime.')) {
+                return;
+            }
+
+            setLoading(restartBtn, true);
+            showStatus('🔄 Restarting server...', 'info');
+
+            try {
+                const response = await fetch('/api/restart-server', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Refresh-Token': token
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus(`
+                        ✅ <strong>Server restart successful!</strong><br>
+                        Command: ${data.command}<br>
+                        📅 ${new Date(data.timestamp).toLocaleString()}<br>
+                        <small>Server should be back online in a few seconds...</small>
+                    `, 'success');
+                    
+                    // Wait a moment then check server status
+                    setTimeout(() => {
+                        checkServerStatus();
+                    }, 3000);
+                } else {
+                    showStatus(`
+                        ❌ <strong>Server restart failed:</strong><br>
+                        ${data.error || 'Unknown error'}<br>
+                        Command: ${data.command || 'pm2 restart jjr-web'}<br>
+                        Details: ${data.details || ''}
+                    `, 'error');
+                }
+            } catch (error) {
+                showStatus(`
+                    ❌ <strong>Network error:</strong><br>
+                    ${error.message}
+                `, 'error');
+            } finally {
+                setLoading(restartBtn, false);
             }
         });
 
