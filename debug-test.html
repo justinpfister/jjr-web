@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .item { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .timestamp { color: #666; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <h1>Debug Test - Last Updated</h1>
+    <div id="output"></div>
+    
+    <script>
+        console.log('Starting debug test...');
+        
+        fetch('/api/content', { cache: 'no-cache' })
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Raw API Response:', data);
+                
+                const output = document.getElementById('output');
+                output.innerHTML = '<h2>API Response:</h2><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                
+                // Test creating elements like the main.js does
+                const testList = document.createElement('div');
+                testList.innerHTML = '<h2>Test List:</h2>';
+                
+                if (data && data.length > 0) {
+                    data.slice(0, 3).forEach(function(item, index) {
+                        console.log('Processing item ' + index + ':', item);
+                        
+                        const div = document.createElement('div');
+                        div.className = 'item';
+                        
+                        const a = document.createElement('a');
+                        a.href = item.href;
+                        a.textContent = item.name;
+                        div.appendChild(a);
+                        
+                        if (item.lastUpdatedFormatted) {
+                            console.log('Adding timestamp for ' + item.name + ':', item.lastUpdatedFormatted);
+                            const span = document.createElement('span');
+                            span.className = 'timestamp';
+                            span.textContent = ' • ' + item.lastUpdatedFormatted;
+                            div.appendChild(span);
+                        } else {
+                            console.log('NO timestamp for ' + item.name);
+                        }
+                        
+                        testList.appendChild(div);
+                    });
+                }
+                
+                output.appendChild(testList);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('output').innerHTML = 'Error: ' + error.message;
+            });
+    </script>
+</body>
+</html>

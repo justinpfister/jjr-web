@@ -41,9 +41,20 @@
                     a.href = item.href;
                     a.textContent = item.name;
                     li.appendChild(a);
+                    
+                    // Add last updated info
+                    if (item.lastUpdatedFormatted) {
+                        var span = document.createElement('span');
+                        span.className = 'muted';
+                        span.textContent = ' • ' + item.lastUpdatedFormatted;
+                        li.appendChild(span);
+                    }
+                    
                     latestList.appendChild(li);
                 });
-            }).catch(function () { /* ignore */ });
+            }).catch(function (error) { 
+                console.error('Error loading content:', error);
+            });
         }
     });
 })();

@@ -147,15 +147,38 @@ app.get('/api/content', function (req, res) {
             try {
                 const full = path.join(dir, file);
                 const text = fs.readFileSync(full, 'utf8');
+                const stats = fs.statSync(full);
                 const matchHtml = text.match(/<!--\s*content-name:\s*([^>]+?)\s*-->/i);
                 const matchJs = text.match(/\/\/\s*content-name:\s*([^\n]+?)\s*$/im);
                 const matchMd = text.match(/^\s*<!--\s*content-name:\s*([^>]+?)\s*-->\s*$/im) || text.match(/^\s*title:\s*(.+)$/im);
                 const match = matchHtml || matchJs || matchMd;
                 const name = (match ? match[1] : (matchMd ? matchMd[1] : file)).trim().replace(/\.(html|js|md)$/i, '');
-                const href = lower.endsWith('.md') ? ('/content/md/' + file) : ('/content/' + file);
-                items.push({ name: name, href: href });
+                const href = file.toLowerCase().endsWith('.md') ? ('/content/md/' + file) : ('/content/' + file);
+                // Simple date formatting
+                const date = new Date(stats.mtime);
+                const formatted = date.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+                
+                items.push({ 
+                    name: name, 
+                    href: href, 
+                    lastUpdated: stats.mtime,
+                    lastUpdatedFormatted: formatted
+                });
             } catch (_) { /* ignore */ }
         });
+        
+        // Sort by last updated (newest first)
+        items.sort(function(a, b) {
+            return new Date(b.lastUpdated) - new Date(a.lastUpdated);
+        });
+        
         res.json(items);
     });
 });
